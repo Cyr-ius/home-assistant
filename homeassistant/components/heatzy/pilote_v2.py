@@ -42,7 +42,6 @@ class HeatzyPiloteV2Thermostat(ClimateDevice):
         """Init V2."""
         self._api = api
         self._heater = device
-        self.update = self._update
 
     @property
     def temperature_unit(self):
@@ -140,4 +139,4 @@ class HeatzyPiloteV2Thermostat(ClimateDevice):
     async def async_update(self):
         """Get the latest state from the thermostat."""
         _LOGGER.debug("Update {}".format(self.name))
-        self._device = await self._api.async_get_device(self.unique_id)
+        self._heater = await self._api.async_get_device_info(self.unique_id)

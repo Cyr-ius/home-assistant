@@ -136,4 +136,4 @@ class HeatzyPiloteV1Thermostat(ClimateDevice):
 
     async def async_update(self):
         """Retrieve latest state."""
-        self._device = await self._api.async_get_device(self.unique_id)
+        self._heater = await self._api.async_get_device(self.unique_id)
