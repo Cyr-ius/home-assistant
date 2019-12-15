@@ -3,7 +3,7 @@
     "title": "Heatzy",
     "step": {
       "user": {
-        "title": "Register your heatzy accound",
+        "title": "Register your heatzy account",
         "data": {
           "username": "Username",
           "password": "Password"
@@ -11,7 +11,7 @@
       },
       "register": {
           "title": "Heatzy",
-	  "description":"Register cozytouch."
+	  "description":"Register heatzy."
       }
     },
     "error": {
@@ -20,7 +20,7 @@
     },
     "abort": {
       "unknown": "Unknown error occurred",
-      "cannot_connect": "Unable to connect to the cozytouch."
+      "cannot_connect": "Unable to connect to the heatzy."
     }
   }
 }

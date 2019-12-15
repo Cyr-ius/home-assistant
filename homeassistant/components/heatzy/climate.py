@@ -2,15 +2,11 @@
 import logging
 
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
-from homeassistant.helpers import aiohttp_client, storage
 
-from .api import HeatzyAPI
-from .authenticator import HeatzyAuthenticator
+from heatzypy import HeatzyClient
 from .const import (
     HEATZY_PILOTE_V1_PRODUCT_KEY,
     HEATZY_PILOTE_V2_PRODUCT_KEY,
-    STORAGE_KEY,
-    STORAGE_VERSION,
 )
 from .pilote_v1 import HeatzyPiloteV1Thermostat
 from .pilote_v2 import HeatzyPiloteV2Thermostat
@@ -28,10 +24,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     username = config_entry.data.get(CONF_USERNAME)
     password = config_entry.data.get(CONF_PASSWORD)
 
-    session = aiohttp_client.async_get_clientsession(hass)
-    store = storage.Store(hass, STORAGE_VERSION, STORAGE_KEY)
-    authenticator = HeatzyAuthenticator(session, store, username, password)
-    api = HeatzyAPI(session, authenticator)
+    api = HeatzyClient(username, password)
     devices = await api.async_get_devices()
     heaters = filter(None.__ne__, map(setup_heatzy_device(api), devices))
 

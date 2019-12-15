@@ -3,7 +3,9 @@
   "name": "Heatzy",
   "config_flow": true,
   "documentation": "https://www.home-assistant.io/components/heatzy",
-  "requirements": [],
+  "requirements": [
+    "heatzypy==0.1.2"
+  ],
   "dependencies": [],
   "codeowners": [
     "@devotics"
