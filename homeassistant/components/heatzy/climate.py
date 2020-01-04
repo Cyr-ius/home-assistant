@@ -56,6 +56,6 @@ def setup_heatzy_device(api):
                 device.get("product_key"),
             )
             return None
-        return DeviceImplementation(device.get("did"), api, device)
+        return DeviceImplementation(api, device)
 
     return find_heatzy_device_implementation

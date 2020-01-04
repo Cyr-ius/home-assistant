@@ -44,9 +44,8 @@ SCAN_INTERVAL = timedelta(minutes=5)
 class HeatzyPiloteV2Thermostat(ClimateDevice):
     """Heaty Pilote v2."""
 
-    def __init__(self, did, api, device):
+    def __init__(self, api, device):
         """Init V2."""
-        self._did = did
         self._api = api
         self._heater = device
         self._heater_detail = {}
@@ -64,7 +63,7 @@ class HeatzyPiloteV2Thermostat(ClimateDevice):
     @property
     def unique_id(self):
         """Return a unique ID."""
-        return self._did
+        return self._heater.get("did")
 
     @property
     def name(self):
@@ -119,9 +118,6 @@ class HeatzyPiloteV2Thermostat(ClimateDevice):
 
     async def async_set_preset_mode(self, preset_mode):
         """Set new preset mode."""
-        _LOGGER.debug(
-            "Set PRESET MODE : {}".format(HA_TO_HEATZY_STATE.get(preset_mode))
-        )
         await self._api.async_control_device(
             self.unique_id, {"attrs": {"mode": HA_TO_HEATZY_STATE.get(preset_mode)}}
         )
@@ -129,7 +125,6 @@ class HeatzyPiloteV2Thermostat(ClimateDevice):
 
     async def async_set_hvac_mode(self, hvac_mode):
         """Set new hvac mode."""
-        _LOGGER.debug(f"Set HVAC MODE {hvac_mode}")
         if hvac_mode == HVAC_MODE_OFF:
             await self.async_turn_off()
         elif hvac_mode == HVAC_MODE_HEAT:
@@ -137,12 +132,10 @@ class HeatzyPiloteV2Thermostat(ClimateDevice):
 
     async def async_turn_on(self):
         """Turn device on."""
-        _LOGGER.debug("HVAC Turn On")
         await self.async_set_preset_mode(PRESET_COMFORT)
 
     async def async_turn_off(self):
         """Turn device off."""
-        _LOGGER.debug("HVAC Turn off")
         await self.async_set_preset_mode(PRESET_NONE)
 
     async def async_update_heater(self, force_update=False):
