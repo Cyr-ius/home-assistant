@@ -1,6 +1,5 @@
 """API for PiloteV2."""
 import asyncio
-
 import logging
 from datetime import timedelta
 
@@ -45,8 +44,9 @@ SCAN_INTERVAL = timedelta(minutes=5)
 class HeatzyPiloteV2Thermostat(ClimateDevice):
     """Heaty Pilote v2."""
 
-    def __init__(self, api, device):
+    def __init__(self, did, api, device):
         """Init V2."""
+        self._did = did
         self._api = api
         self._heater = device
         self._heater_detail = {}
@@ -64,7 +64,7 @@ class HeatzyPiloteV2Thermostat(ClimateDevice):
     @property
     def unique_id(self):
         """Return a unique ID."""
-        return self._heater.get("did")
+        return self._did
 
     @property
     def name(self):
@@ -150,9 +150,9 @@ class HeatzyPiloteV2Thermostat(ClimateDevice):
         if force_update is True:
             # Updated temperature to HA state to avoid flapping (API confirmation is slow)
             await asyncio.sleep(1)
-        _LOGGER.debug(f"Update {self.name} - {self.unique_id}")
-        self._heater_detail = await self._api.async_get_device(self.unique_id)
-        _LOGGER.debug(self._heater_detail)
+        data_status = await self._api.async_get_device(self.unique_id)
+        if data_status:
+            self._heater_detail = data_status
 
     @Throttle(SCAN_INTERVAL)
     async def async_update(self):
