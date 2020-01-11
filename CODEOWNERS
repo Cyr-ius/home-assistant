@@ -135,7 +135,7 @@ homeassistant/components/gtfs/* @robbiet480
 homeassistant/components/harmony/* @ehendrix23
 homeassistant/components/hassio/* @home-assistant/hass-io
 homeassistant/components/heatmiser/* @andylockran
-homeassistant/components/heatzy/* @devotics
+homeassistant/components/heatzy/* @cyr-ius
 homeassistant/components/heos/* @andrewsayre
 homeassistant/components/here_travel_time/* @eifinger
 homeassistant/components/hikvision/* @mezz64
