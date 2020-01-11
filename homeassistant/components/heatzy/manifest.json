@@ -1,0 +1,11 @@
+{
+  "domain": "heatzy",
+  "name": "Heatzy",
+  "config_flow": true,
+  "documentation": "https://www.home-assistant.io/components/heatzy",
+  "requirements": [],
+  "dependencies": [],
+  "codeowners": [
+    "@devotics"
+  ]
+}

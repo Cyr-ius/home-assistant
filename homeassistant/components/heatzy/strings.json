@@ -1,0 +1,26 @@
+{
+  "config": {
+    "title": "Heatzy",
+    "step": {
+      "user": {
+        "title": "Register your heatzy accound",
+        "data": {
+          "username": "Username",
+          "password": "Password"
+        }
+      },
+      "register": {
+          "title": "Heatzy",
+	  "description":"Register cozytouch."
+      }
+    },
+    "error": {
+      "login_inccorect": "User or password inccorect",
+      "linking": "Unknown linking error occurred."
+    },
+    "abort": {
+      "unknown": "Unknown error occurred",
+      "cannot_connect": "Unable to connect to the cozytouch."
+    }
+  }
+}
