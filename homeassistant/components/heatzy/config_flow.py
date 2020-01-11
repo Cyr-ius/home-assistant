@@ -1,22 +1,13 @@
 """Config flow to configure Heatzy."""
 import logging
 
+from heatzypy import HeatzyClient
 import voluptuous as vol
 
 from homeassistant import config_entries
-<<<<<<< HEAD
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
-from homeassistant.helpers import aiohttp_client, storage
 
-from .api import HeatzyAPI
-from .authenticator import HeatzyAuthenticator
-from .const import DOMAIN, STORAGE_KEY, STORAGE_VERSION
-=======
-from homeassistant.const import CONF_USERNAME, CONF_PASSWORD
-
-from heatzypy import HeatzyClient
 from .const import DOMAIN
->>>>>>> 6e0c3981a... Replace api to heatzypy
 
 DATA_SCHEMA = vol.Schema(
     {vol.Required(CONF_USERNAME): str, vol.Required(CONF_PASSWORD): str}

@@ -1,21 +1,14 @@
 """Heatzy platform configuration."""
 import logging
 
+from heatzypy import HeatzyClient
 import voluptuous as vol
 
 from homeassistant.config_entries import SOURCE_IMPORT
-<<<<<<< HEAD
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
-from homeassistant.helpers import aiohttp_client, config_validation as cv, storage
+from homeassistant.helpers import config_validation as cv
 
-from .api import HeatzyAPI
-from .authenticator import HeatzyAuthenticator
-from .const import DOMAIN, STORAGE_KEY, STORAGE_VERSION
-=======
-
-from heatzypy import HeatzyClient
 from .const import DOMAIN
->>>>>>> 6e0c3981a... Replace api to heatzypy
 
 _LOGGER = logging.getLogger(__name__)
 
