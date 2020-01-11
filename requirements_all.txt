@@ -398,9 +398,6 @@ connect-box==0.2.5
 # homeassistant.components.xiaomi_miio
 construct==2.9.45
 
-# homeassistant.components.cozytouch
-cozypy==1.1.1
-
 # homeassistant.scripts.credstash
 # credstash==1.15.0
 
@@ -662,6 +659,9 @@ hdate==0.9.3
 
 # homeassistant.components.heatmiser
 heatmiserV3==1.1.18
+
+# homeassistant.components.heatzy
+heatzypy==0.1.2
 
 # homeassistant.components.here_travel_time
 herepy==2.0.0
