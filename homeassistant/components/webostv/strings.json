@@ -1,0 +1,21 @@
+{
+  "config": {
+    "step": {
+      "init": {
+        "title": "Connect to the device",
+        "description": "Add WebosTV device",
+        "data": {}
+      },
+      "pairing": {
+        "title": "Waiting to pairing",
+        "description": "Pairing HA to Webos TV"
+      }
+    },
+    "error": {
+      "pairing": "[%key:common::config_flow::error::unknown%]"
+    },
+    "abort": {
+      "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]"
+    }
+  }
+}

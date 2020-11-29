@@ -227,6 +227,7 @@ FLOWS = [
     "vilfo",
     "vizio",
     "volumio",
+    "webostv",
     "wemo",
     "wiffi",
     "wilight",

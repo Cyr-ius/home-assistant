@@ -19,6 +19,7 @@ from homeassistant.components.webostv.const import (
     SERVICE_SELECT_SOUND_OUTPUT,
     WEBOSTV_CONFIG_FILE,
 )
+from homeassistant.config_entries import SOURCE_IMPORT
 from homeassistant.const import (
     ATTR_ENTITY_ID,
     CONF_CUSTOMIZE,
@@ -79,6 +80,23 @@ _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup(hass, config):
+    """Set up the roomba environment."""
+    hass.data.setdefault(DOMAIN, {})
+
+    if DOMAIN not in config:
+        return True
+    for index, conf in enumerate(config[DOMAIN]):
+        _LOGGER.debug("Importing Webostv #%d - %s", index, conf[CONF_HOST])
+        hass.async_create_task(
+            hass.config_entries.flow.async_init(
+                DOMAIN, context={"source": SOURCE_IMPORT}, data=conf
+            )
+        )
+
+    return True
+
+
+async def async_setup_entry(hass, config_entry):
     """Set up the LG WebOS TV platform."""
     hass.data[DOMAIN] = {}
 
@@ -94,27 +112,27 @@ async def async_setup(hass, config):
             DOMAIN, service, async_service_handler, schema=schema
         )
 
-    tasks = [async_setup_tv(hass, config, conf) for conf in config[DOMAIN]]
+    tasks = [async_setup_tv(hass, config_entry)]
     if tasks:
         await asyncio.gather(*tasks)
 
     return True
 
 
-async def async_setup_tv(hass, config, conf):
+async def async_setup_tv(hass, config_entry):
     """Set up a LG WebOS TV based on host parameter."""
 
-    host = conf[CONF_HOST]
+    host = config_entry[CONF_HOST]
     config_file = hass.config.path(WEBOSTV_CONFIG_FILE)
 
     client = WebOsClient(host, config_file)
     hass.data[DOMAIN][host] = {"client": client}
 
     if client.is_registered():
-        await async_setup_tv_finalize(hass, config, conf, client)
+        await async_setup_tv_finalize(hass, config_entry, client)
     else:
         _LOGGER.warning("LG webOS TV %s needs to be paired", host)
-        await async_request_configuration(hass, config, conf, client)
+        await async_request_configuration(hass, config_entry, client)
 
 
 async def async_connect(client):
@@ -144,12 +162,12 @@ async def async_setup_tv_finalize(hass, config, conf, client):
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, async_on_stop)
 
     await async_connect(client)
-    hass.async_create_task(
-        hass.helpers.discovery.async_load_platform("media_player", DOMAIN, conf, config)
-    )
-    hass.async_create_task(
-        hass.helpers.discovery.async_load_platform("notify", DOMAIN, conf, config)
-    )
+    # hass.async_create_task(
+    #     hass.helpers.discovery.async_load_platform("media_player", DOMAIN, conf, config)
+    # )
+    # hass.async_create_task(
+    #     hass.helpers.discovery.async_load_platform("notify", DOMAIN, conf, config)
+    # )
 
 
 async def async_request_configuration(hass, config, conf, client):
