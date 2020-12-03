@@ -1,22 +1,42 @@
 {
-    "config": {
-      "step": {
-        "init": {
-          "title": "Connect to the device",
-          "description": "Add WebosTV device",
-          "data": {}
-        },
-        "pairing": {
-          "title": "Waiting to pairing",
-          "description": "Pairing HA to Webos TV"
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to the device",
+        "description": "Add WebosTV device",
+        "data": {
+          "host": "Hostname",
+          "name": "Name - optional",
+          "icon": "Icon - optional (ex: mdi:tv)",
+          "sources": "Sources list - optional (ex: livetv,netflix,youtube)"
         }
       },
-      "error": {
-        "pairing": "[%key:common::config_flow::error::unknown%]"
-      },
-      "abort": {
-        "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]"
+      "pairing": {
+        "title": "Waiting to pairing",
+        "description": "Click start and accept the pairing request on your TV.\n\n![Image](/static/images/config_webos.png)"
       }
+    },
+    "error": {
+      "pairing": "Unknown error",
+      "json": "error json encoding"
+    },
+    "abort": {
+      "cannot_connect": "Error cannot connect"
     }
-  }
-  
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Turn on action",
+        "description": "Home Assistant is able to turn on a LG webOS Smart TV if you specify an action, like HDMI-CEC or WakeOnLan.",
+        "data": {
+          "service": "Service (ex: wake_on_lan.send_magic_packet)",
+          "data": "JSON Data (ex: \"mac\":\"01:23:45:67:89:AB\",\"broadcast\":\"255.255.255.0\")"
+        }
+      }
+    },
+    "error": {
+      "encode_json": "Error: incorrect JSON Format"
+    }
+  }  
+}

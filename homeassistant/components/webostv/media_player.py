@@ -23,14 +23,6 @@ from homeassistant.components.media_player.const import (
     SUPPORT_VOLUME_SET,
     SUPPORT_VOLUME_STEP,
 )
-from homeassistant.components.webostv.const import (
-    ATTR_PAYLOAD,
-    ATTR_SOUND_OUTPUT,
-    CONF_ON_ACTION,
-    CONF_SOURCES,
-    DOMAIN,
-    LIVE_TV_APP_ID,
-)
 from homeassistant.const import (
     ATTR_ENTITY_ID,
     CONF_CUSTOMIZE,
@@ -43,6 +35,15 @@ from homeassistant.const import (
 )
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.script import Script
+
+from .const import (
+    ATTR_PAYLOAD,
+    ATTR_SOUND_OUTPUT,
+    CONF_ON_ACTION,
+    CONF_SOURCES,
+    DOMAIN,
+    LIVE_TV_APP_ID,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -63,22 +64,17 @@ MIN_TIME_BETWEEN_FORCED_SCANS = timedelta(seconds=1)
 SCAN_INTERVAL = timedelta(seconds=10)
 
 
-async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
+async def async_setup_entry(hass, config_entry, async_add_entities):
     """Set up the LG webOS Smart TV platform."""
-
-    if discovery_info is None:
-        return
-
-    host = discovery_info[CONF_HOST]
-    name = discovery_info[CONF_NAME]
-    customize = discovery_info[CONF_CUSTOMIZE]
-    turn_on_action = discovery_info.get(CONF_ON_ACTION)
+    host = config_entry.data[CONF_HOST]
+    name = config_entry.data[CONF_NAME]
+    customize = config_entry.data[CONF_CUSTOMIZE]
+    turn_on_action = [config_entry.options.get(CONF_ON_ACTION)]
 
     client = hass.data[DOMAIN][host]["client"]
     on_script = Script(hass, turn_on_action, name, DOMAIN) if turn_on_action else None
 
     entity = LgWebOSMediaPlayerEntity(client, name, customize, on_script)
-
     async_add_entities([entity], update_before_add=False)
 
 
