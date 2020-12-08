@@ -6,6 +6,7 @@ from aiopylgtv import PyLGTVCmdException, PyLGTVPairException, WebOsClient
 import voluptuous as vol
 from websockets.exceptions import ConnectionClosed
 
+from homeassistant import exceptions
 from homeassistant.config_entries import SOURCE_IMPORT
 from homeassistant.const import (
     ATTR_ENTITY_ID,
@@ -101,7 +102,8 @@ async def async_setup_entry(hass, config_entry):
     """Set the config entry up."""
     if not config_entry.options:
         options = {}
-        options[CONF_ON_ACTION] = config_entry.data.get(CONF_ON_ACTION, [])[0]
+        options[CONF_ON_ACTION] = config_entry.data.get(CONF_ON_ACTION, {})
+        options[CONF_SOURCES] = config_entry.data.get(CONF_SOURCES, [])
         hass.config_entries.async_update_entry(config_entry, options=options)
 
     host = config_entry.data[CONF_HOST]
@@ -196,3 +198,30 @@ async def async_connect(client):
         PyLGTVCmdException,
     ):
         pass
+
+
+async def async_control_connect(hass, host: str) -> WebOsClient:
+    """LG Connection."""
+    config_file = hass.config.path(WEBOSTV_CONFIG_FILE)
+    client = WebOsClient(host, config_file, timeout_connect=10)
+    try:
+        await client.connect()
+    except PyLGTVPairException as error:
+        _LOGGER.warning("Connected to LG webOS TV %s but not paired", host)
+        raise PyLGTVPairException(error)
+    except (
+        OSError,
+        ConnectionClosed,
+        ConnectionRefusedError,
+        PyLGTVCmdException,
+        asyncio.TimeoutError,
+        asyncio.CancelledError,
+    ) as error:
+        _LOGGER.error("Error to connect at %s", host)
+        raise CannotConnect(error)
+
+    return client
+
+
+class CannotConnect(exceptions.HomeAssistantError):
+    """Error to indicate we cannot connect."""

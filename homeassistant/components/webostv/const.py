@@ -2,7 +2,7 @@
 DOMAIN = "webostv"
 COMPONENTS = ["media_player"]
 DEFAULT_NAME = "LG webOS Smart TV"
-
+DEFAULT_SOURCES = ["LiveTV", "HDMI1", "HDMI2", "HDMI1"]
 ATTR_BUTTON = "button"
 ATTR_COMMAND = "command"
 ATTR_PAYLOAD = "payload"

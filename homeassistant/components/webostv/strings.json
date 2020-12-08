@@ -2,41 +2,42 @@
   "config": {
     "step": {
       "user": {
-        "title": "Connect to the device",
-        "description": "Add WebosTV device",
+        "title": "[%key:component::webostv::config::step::user::title%]",
+        "description": "[%key:component::webostv::config::step::user::description%]",
         "data": {
-          "host": "Hostname",
-          "name": "Name - optional",
-          "icon": "Icon - optional (ex: mdi:tv)",
-          "sources": "Sources list - optional (ex: livetv,netflix,youtube)"
+          "host": "[%key:common::config_flow::data::host%]",
+          "name": "[%key:common::config_flow::data::name%]",
+          "icon": "[%key:component::webostv::config::step::user::data::icon%]"
         }
       },
       "pairing": {
-        "title": "Waiting to pairing",
-        "description": "Click start and accept the pairing request on your TV.\n\n![Image](/static/images/config_webos.png)"
+        "title": "[%key:component::webostv::config::step::pairing::title%]",
+        "description": "[%key:component::webostv::config::step::pairing::description%]"
       }
     },
     "error": {
-      "pairing": "Unknown error",
-      "json": "error json encoding"
+      "encode_json": "[%key:component::webostv::config::error::encode_json%]",
+      "cannot_connect": "[%key:component::webostv::config::error::cannot_connect%]"
     },
     "abort": {
-      "cannot_connect": "Error cannot connect"
+      "error_pairing": "[%key:component::webostv::config::abort::error_pairing%]",
+      "already_configured_device": "[%key:common::config_flow::abort::already_configured_device%]"
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "Turn on action",
-        "description": "Home Assistant is able to turn on a LG webOS Smart TV if you specify an action, like HDMI-CEC or WakeOnLan.",
+        "title": "[%key:component::webostv::options::step::init::title%]",
+        "description": "[%key:component::webostv::options::step::init::description%]",
         "data": {
-          "service": "Service (ex: wake_on_lan.send_magic_packet)",
-          "data": "JSON Data (ex: \"mac\":\"01:23:45:67:89:AB\",\"broadcast\":\"255.255.255.0\")"
+          "service": "[%key:component::webostv::options::step::init::data::service%]",
+          "data": "[%key:component::webostv::options::step::init::data::data%]",
+          "sources": "[%key:component::webostv::options::step::init::data::sources%]"
         }
       }
     },
     "error": {
-      "encode_json": "Error: incorrect JSON Format"
+      "encode_json": "[%key:component::webostv::config::error::encode_json%]"
     }
   }  
 }

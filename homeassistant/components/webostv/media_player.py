@@ -25,7 +25,6 @@ from homeassistant.components.media_player.const import (
 )
 from homeassistant.const import (
     ATTR_ENTITY_ID,
-    CONF_CUSTOMIZE,
     CONF_HOST,
     CONF_NAME,
     ENTITY_MATCH_ALL,
@@ -68,13 +67,13 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     """Set up the LG webOS Smart TV platform."""
     host = config_entry.data[CONF_HOST]
     name = config_entry.data[CONF_NAME]
-    customize = config_entry.data[CONF_CUSTOMIZE]
+    sources = config_entry.options[CONF_SOURCES]
     turn_on_action = [config_entry.options.get(CONF_ON_ACTION)]
 
     client = hass.data[DOMAIN][host]["client"]
     on_script = Script(hass, turn_on_action, name, DOMAIN) if turn_on_action else None
 
-    entity = LgWebOSMediaPlayerEntity(client, name, customize, on_script)
+    entity = LgWebOSMediaPlayerEntity(client, name, sources, on_script)
     async_add_entities([entity], update_before_add=False)
 
 
@@ -110,12 +109,12 @@ def cmd(func):
 class LgWebOSMediaPlayerEntity(MediaPlayerEntity):
     """Representation of a LG webOS Smart TV."""
 
-    def __init__(self, client: WebOsClient, name: str, customize, on_script=None):
+    def __init__(self, client: WebOsClient, name: str, sources, on_script=None):
         """Initialize the webos device."""
         self._client = client
         self._name = name
         self._unique_id = client.client_key
-        self._customize = customize
+        self._sources = sources
         self._on_script = on_script
 
         # Assume that the TV is not paused
@@ -160,7 +159,7 @@ class LgWebOSMediaPlayerEntity(MediaPlayerEntity):
         """Update list of sources from current source, apps, inputs and configured list."""
         source_list = self._source_list
         self._source_list = {}
-        conf_sources = self._customize[CONF_SOURCES]
+        conf_sources = self._sources
 
         found_live_tv = False
         for app in self._client.apps.values():
