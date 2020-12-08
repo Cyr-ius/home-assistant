@@ -37,7 +37,8 @@
       }
     },
     "error": {
-      "encode_json": "[%key:component::webostv::config::error::encode_json%]"
+      "cannot_retrieve": "[%key:component::webostv::options::error::cannot_retrieve%]",
+      "encode_json": "[%key:component::webostv::options::error::encode_json%]"
     }
   }  
 }

@@ -1,11 +1,13 @@
 """Config flow to configure webostv component."""
 import json
 import logging
+from urllib.parse import urlparse
 
 from aiopylgtv import PyLGTVPairException
 import voluptuous as vol
 
 from homeassistant import config_entries
+from homeassistant.components import ssdp
 from homeassistant.const import CONF_CUSTOMIZE, CONF_HOST, CONF_ICON, CONF_NAME
 from homeassistant.core import callback
 from homeassistant.helpers import config_validation as cv
@@ -66,19 +68,20 @@ class FlowHandler(config_entries.ConfigFlow):
             self._abort_if_unique_id_configured()
 
             # Get Turn_on service
-            turn_on_service = user_input.get(CONF_ON_ACTION, {})
-            services = {}
-            for service in turn_on_service:
-                services.update(service)
-            user_input[CONF_ON_ACTION] = services
+            turn_on_service = user_input.get(CONF_ON_ACTION)
+            if turn_on_service:
+                services = {}
+                for service in turn_on_service:
+                    services.update(service)
+                user_input[CONF_ON_ACTION] = services
 
-            # Get Sources
-            sources = user_input[CONF_SOURCES] = user_input.get(CONF_CUSTOMIZE, {}).get(
-                CONF_SOURCES, []
-            )
-            user_input.pop(CONF_CUSTOMIZE, None)
-            if isinstance(sources, list) is False:
-                user_input[CONF_SOURCES] = sources.split(",")
+            # Get Preferred Sources
+            sources = user_input.get(CONF_CUSTOMIZE, {}).get(CONF_SOURCES)
+            if sources:
+                user_input[CONF_SOURCES] = sources
+                user_input.pop(CONF_CUSTOMIZE, None)
+                if isinstance(sources, list) is False:
+                    user_input[CONF_SOURCES] = sources.split(",")
 
             # save for pairing
             self.user_input = user_input
@@ -97,7 +100,6 @@ class FlowHandler(config_entries.ConfigFlow):
         _LOGGER.debug("LG webOS TV %s needs to be paired", host)
 
         if user_input is not None:
-            self.imported = False
             try:
                 client = await async_control_connect(self.hass, host)
             except PyLGTVPairException:
@@ -105,10 +107,7 @@ class FlowHandler(config_entries.ConfigFlow):
             except CannotConnect:
                 errors["base"] = "cannot_connect"
 
-            if errors:
-                return self.async_show_form(step_id="pairing", errors=errors)
-
-            if client.is_registered():
+            if "base" not in errors:
                 return await self.async_step_register(self.user_input, client)
 
         return self.async_show_form(
@@ -123,6 +122,14 @@ class FlowHandler(config_entries.ConfigFlow):
 
         return await self.async_step_user()
 
+    async def async_step_ssdp(self, discovery_info):
+        """Handle a discovered Heos device."""
+        user_input = {
+            CONF_HOST: urlparse(discovery_info[ssdp.ATTR_SSDP_LOCATION]).hostname,
+            CONF_NAME: discovery_info["friendlyName"],
+        }
+        return await self.async_step_user(user_input)
+
 
 class OptionsFlowHandler(config_entries.OptionsFlow):
     """Handle options."""
@@ -131,6 +138,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         """Initialize options flow."""
         self.config_entry = config_entry
         self.options = config_entry.options
+        self.host = config_entry.data[CONF_HOST]
 
     async def async_step_init(self, user_input=None):
         """Manage the options."""
@@ -138,24 +146,37 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
         if user_input is not None:
             try:
-                data_input = {
-                    CONF_ON_ACTION: {
-                        "service": user_input.get(TURN_ON_SERVICE, ""),
-                        "data": json.loads(user_input.get(TURN_ON_DATA)),
-                    },
-                    CONF_SOURCES: user_input[CONF_SOURCES],
-                }
+                data_input = {}
+                # Set turn on service
+                if user_input.get(TURN_ON_SERVICE):
+                    data_input.update(
+                        {
+                            CONF_ON_ACTION: {
+                                "service": user_input.get(TURN_ON_SERVICE),
+                                "data": json.loads(user_input.get(TURN_ON_DATA)),
+                            }
+                        }
+                    )
+                # Set preferred sources
+                if user_input.get(CONF_SOURCES):
+                    data_input.update({CONF_SOURCES: user_input[CONF_SOURCES]})
+
                 return self.async_create_entry(title="", data=data_input)
+
             except json.decoder.JSONDecodeError as error:
-                _LOGGER.error("Error JSON %s" % error)
+                _LOGGER.error("Error JSON (%s)" % error)
                 errors["base"] = "encode_json"
 
-        client = await async_control_connect(
-            self.hass, self.config_entry.data[CONF_HOST]
-        )
+        # Get turn on service
         service = self.options.get(CONF_ON_ACTION, {}).get(TURN_ON_SERVICE, "")
         data = json.dumps(self.options.get(CONF_ON_ACTION, {}).get(TURN_ON_DATA, "{}"))
-        sources = await async_default_sources(client)
+
+        # Get sources
+        sources = self.options.get(CONF_SOURCES, DEFAULT_SOURCES)
+        sources_list = await async_default_sources(self.hass, self.host)
+        if sources_list is None:
+            errors["base"] = "cannot_retrieve"
+            sources_list = self.options.get(CONF_SOURCES, DEFAULT_SOURCES)
 
         OPTIONS_SCHEMA = vol.Schema(
             {
@@ -170,12 +191,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 ): str,
                 vol.Optional(
                     CONF_SOURCES,
-                    description={
-                        "suggested_value": self.options.get(
-                            CONF_SOURCES, DEFAULT_SOURCES
-                        )
-                    },
-                ): cv.multi_select(sources),
+                    description={"suggested_value": sources},
+                ): cv.multi_select(sources_list),
             }
         )
 
@@ -184,11 +201,19 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         )
 
 
-async def async_default_sources(client) -> list:
+async def async_default_sources(hass, host) -> list:
     """Construct sources list."""
+
     sources = []
+    try:
+        client = await async_control_connect(hass, host)
+    except CannotConnect as error:
+        _LOGGER.warning("Unable to retrieve.Device must be switched off (%s)" % error)
+        return None
+
     for app in client.apps.values():
         sources.append(app["title"])
     for source in client.inputs.values():
         sources.append(source["label"])
+
     return sources

@@ -37,7 +37,8 @@
       }
     },
     "error": {
-      "encode_json": "Error: incorrect JSON Format"
+      "encode_json": "Error json encoding",
+      "cannot_retrieve": "Unable to retrieve the list of sources.Device must be switched off"
     }
   }  
 }
