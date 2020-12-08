@@ -82,7 +82,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup(hass, config):
-    """Set up the roomba environment."""
+    """Set up the environment."""
     hass.data.setdefault(DOMAIN, {})
 
     if DOMAIN not in config:
