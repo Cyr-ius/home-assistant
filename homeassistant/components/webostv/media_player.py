@@ -67,8 +67,8 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     """Set up the LG webOS Smart TV platform."""
     host = config_entry.data[CONF_HOST]
     uid = config_entry.unique_id
-    name = config_entry.data[CONF_NAME]
-    sources = config_entry.options[CONF_SOURCES]
+    name = config_entry.data.get(CONF_NAME)
+    sources = config_entry.options.get(CONF_SOURCES)
     turn_on_action = [config_entry.options.get(CONF_ON_ACTION)]
 
     client = hass.data[DOMAIN][host]["client"]
