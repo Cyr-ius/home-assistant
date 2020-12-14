@@ -29,7 +29,7 @@ DATA_SCHEMA = vol.Schema(
         vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
         vol.Optional(CONF_ICON): cv.string,
     },
-    extra=vol.REMOVE_EXTRA,
+    extra=vol.ALLOW_EXTRA,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -56,15 +56,18 @@ class FlowHandler(config_entries.ConfigFlow):
         """Set the config entry up from yaml."""
         return await self.async_step_user(import_info)
 
-    async def async_step_user(self, user_input=None, is_imported=False):
+    async def async_step_user(self, user_input=None):
         """Handle a flow initialized by the user."""
         errors = {}
 
         if user_input is not None:
 
-            host = user_input[CONF_HOST]
+            name = user_input.get(CONF_NAME, CONF_HOST)
+            # pylint: disable=no-member
+            self.context["title_placeholders"] = {"name": name}
+
             # check exist
-            await self.async_set_unique_id(host)
+            await self.async_set_unique_id(user_input[CONF_HOST])
             self._abort_if_unique_id_configured()
 
             # Get Turn_on service
@@ -111,14 +114,20 @@ class FlowHandler(config_entries.ConfigFlow):
                 return await self.async_step_register(self.user_input, client)
 
         return self.async_show_form(
-            step_id="pairing", data_schema=vol.Schema({}), errors=errors
+            step_id="pairing",
+            errors=errors,
         )
 
     async def async_step_register(self, user_input, client=None):
         """Register entity."""
         if client.is_registered():
-            host = user_input.get(CONF_HOST)
-            return self.async_create_entry(title=host, data=user_input)
+            name = user_input.get(CONF_NAME, CONF_HOST)
+            user_input["model"] = client.software_info.get("model_name")
+            maj_v = client.software_info.get("major_ver")
+            min_v = client.software_info.get("minor_ver")
+            user_input["sw_version"] = f"{maj_v}.{min_v}"
+
+            return self.async_create_entry(title=name, data=user_input)
 
         return await self.async_step_user()
 
@@ -128,6 +137,10 @@ class FlowHandler(config_entries.ConfigFlow):
             CONF_HOST: urlparse(discovery_info[ssdp.ATTR_SSDP_LOCATION]).hostname,
             CONF_NAME: discovery_info["friendlyName"],
         }
+
+        # pylint: disable=no-member
+        self.context["title_placeholders"] = {"name": user_input[CONF_NAME]}
+
         return await self.async_step_user(user_input)
 
 
@@ -164,7 +177,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 return self.async_create_entry(title="", data=data_input)
 
             except json.decoder.JSONDecodeError as error:
-                _LOGGER.error("Error JSON (%s)" % error)
+                _LOGGER.error("Error JSON (%s)", error)
                 errors["base"] = "encode_json"
 
         # Get turn on service
@@ -178,7 +191,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             errors["base"] = "cannot_retrieve"
             sources_list = self.options.get(CONF_SOURCES, DEFAULT_SOURCES)
 
-        OPTIONS_SCHEMA = vol.Schema(
+        options_schema = vol.Schema(
             {
                 vol.Optional(
                     TURN_ON_SERVICE,
@@ -197,18 +210,17 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         )
 
         return self.async_show_form(
-            step_id="init", data_schema=OPTIONS_SCHEMA, errors=errors
+            step_id="init", data_schema=options_schema, errors=errors
         )
 
 
 async def async_default_sources(hass, host) -> list:
     """Construct sources list."""
-
     sources = []
     try:
         client = await async_control_connect(hass, host)
     except CannotConnect as error:
-        _LOGGER.warning("Unable to retrieve.Device must be switched off (%s)" % error)
+        _LOGGER.warning("Unable to retrieve.Device must be switched off (%s)", error)
         return None
 
     for app in client.apps.values():
