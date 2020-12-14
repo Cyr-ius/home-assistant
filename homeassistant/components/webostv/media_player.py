@@ -66,6 +66,7 @@ SCAN_INTERVAL = timedelta(seconds=10)
 async def async_setup_entry(hass, config_entry, async_add_entities):
     """Set up the LG webOS Smart TV platform."""
     host = config_entry.data[CONF_HOST]
+    uid = config_entry.unique_id
     name = config_entry.data[CONF_NAME]
     sources = config_entry.options[CONF_SOURCES]
     turn_on_action = [config_entry.options.get(CONF_ON_ACTION)]
@@ -73,7 +74,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     client = hass.data[DOMAIN][host]["client"]
     on_script = Script(hass, turn_on_action, name, DOMAIN) if turn_on_action else None
 
-    entity = LgWebOSMediaPlayerEntity(client, name, sources, on_script)
+    entity = LgWebOSMediaPlayerEntity(client, name, sources, uid, on_script)
     async_add_entities([entity], update_before_add=False)
 
 
@@ -109,10 +110,11 @@ def cmd(func):
 class LgWebOSMediaPlayerEntity(MediaPlayerEntity):
     """Representation of a LG webOS Smart TV."""
 
-    def __init__(self, client: WebOsClient, name: str, sources, on_script=None):
+    def __init__(self, client: WebOsClient, name: str, sources, uid, on_script=None):
         """Initialize the webos device."""
         self._client = client
         self._name = name
+        self._uid = uid
         self._unique_id = client.client_key
         self._sources = sources
         self._on_script = on_script
@@ -311,6 +313,11 @@ class LgWebOSMediaPlayerEntity(MediaPlayerEntity):
             supported = supported | SUPPORT_TURN_ON
 
         return supported
+
+    @property
+    def device_info(self):
+        """Return device information."""
+        return {"identifiers": {(DOMAIN, self._uid)}}
 
     @property
     def device_state_attributes(self):

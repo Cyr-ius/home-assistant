@@ -7,6 +7,7 @@ import voluptuous as vol
 from websockets.exceptions import ConnectionClosed
 
 from homeassistant import exceptions
+from homeassistant.components import notify as hass_notify
 from homeassistant.config_entries import SOURCE_IMPORT
 from homeassistant.const import (
     ATTR_ENTITY_ID,
@@ -16,7 +17,11 @@ from homeassistant.const import (
     CONF_NAME,
     EVENT_HOMEASSISTANT_STOP,
 )
-import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers import (
+    config_validation as cv,
+    device_registry as dr,
+    discovery,
+)
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
 from .const import (
@@ -84,11 +89,10 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup(hass, config):
     """Set up the environment."""
     hass.data.setdefault(DOMAIN, {})
-
     if DOMAIN not in config:
         return True
 
-    for index, conf in enumerate(config[DOMAIN]):
+    for conf in config[DOMAIN]:
         hass.async_create_task(
             hass.config_entries.flow.async_init(
                 DOMAIN, context={"source": SOURCE_IMPORT}, data=conf
@@ -108,53 +112,63 @@ async def async_setup_entry(hass, config_entry):
 
     host = config_entry.data[CONF_HOST]
     config_file = hass.config.path(WEBOSTV_CONFIG_FILE)
-
     client = WebOsClient(host, config_file)
-    hass.data[DOMAIN][host] = {"client": client}
+    await async_connect(client)
 
-    if client.is_registered():
+    device_registry = await dr.async_get_registry(hass)
+    device_registry.async_get_or_create(
+        config_entry_id=config_entry.entry_id,
+        identifiers={(DOMAIN, config_entry.unique_id)},
+        manufacturer="LG",
+        name=config_entry.data[CONF_NAME],
+        model=config_entry.data.get("model"),
+        sw_version=config_entry.data.get("sw_version"),
+    )
 
-        async def async_service_handler(service):
-            method = SERVICE_TO_METHOD.get(service.service)
-            data = service.data.copy()
-            data["method"] = method["method"]
-            async_dispatcher_send(hass, DOMAIN, data)
+    async def async_service_handler(service):
+        method = SERVICE_TO_METHOD.get(service.service)
+        data = service.data.copy()
+        data["method"] = method["method"]
+        async_dispatcher_send(hass, DOMAIN, data)
 
-        for service in SERVICE_TO_METHOD:
-            schema = SERVICE_TO_METHOD[service]["schema"]
-            hass.services.async_register(
-                DOMAIN, service, async_service_handler, schema=schema
-            )
-
-        for component in COMPONENTS:
-            hass.async_create_task(
-                hass.config_entries.async_forward_entry_setup(config_entry, component)
-            )
-
-        hass.async_create_task(
-            hass.helpers.discovery.async_load_platform(
-                "notify",
-                DOMAIN,
-                {CONF_HOST: host, CONF_ICON: config_entry.data.get(CONF_ICON)},
-                hass.data[DOMAIN],
-            )
+    for service in SERVICE_TO_METHOD:
+        schema = SERVICE_TO_METHOD[service]["schema"]
+        hass.services.async_register(
+            DOMAIN, service, async_service_handler, schema=schema
         )
 
-        if not config_entry.update_listeners:
-            config_entry.add_update_listener(async_update_options)
+    hass.data[DOMAIN][host] = {"client": client}
 
-        async def async_on_stop(event):
-            """Unregister callbacks and disconnect."""
-            client.clear_state_update_callbacks()
-            await client.disconnect()
+    for component in COMPONENTS:
+        hass.async_create_task(
+            hass.config_entries.async_forward_entry_setup(config_entry, component)
+        )
 
-        hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, async_on_stop)
+    # set up notify platform, no entry support for notify component yet,
+    # have to use discovery to load platform.
+    hass.async_create_task(
+        discovery.async_load_platform(
+            hass,
+            "notify",
+            DOMAIN,
+            {
+                CONF_HOST: host,
+                CONF_ICON: config_entry.data.get(CONF_ICON),
+                CONF_NAME: config_entry.data[CONF_NAME],
+            },
+            hass.data[DOMAIN],
+        )
+    )
 
-        await async_connect(client)
+    if not config_entry.update_listeners:
+        config_entry.add_update_listener(async_update_options)
 
-    else:
-        _LOGGER.warning("LG webOS TV %s needs to be paired, see Integration", host)
-        return False
+    async def async_on_stop(event):
+        """Unregister callbacks and disconnect."""
+        client.clear_state_update_callbacks()
+        await client.disconnect()
+
+    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, async_on_stop)
 
     return True
 
@@ -178,6 +192,7 @@ async def async_unload_entry(hass, config_entry):
     )
 
     if unload_ok:
+        await hass_notify.async_reload(hass, DOMAIN)
         client.clear_state_update_callbacks()
         await client.disconnect()
 
@@ -208,7 +223,7 @@ async def async_control_connect(hass, host: str) -> WebOsClient:
         await client.connect()
     except PyLGTVPairException as error:
         _LOGGER.warning("Connected to LG webOS TV %s but not paired", host)
-        raise PyLGTVPairException(error)
+        raise PyLGTVPairException from error
     except (
         OSError,
         ConnectionClosed,
@@ -218,7 +233,7 @@ async def async_control_connect(hass, host: str) -> WebOsClient:
         asyncio.CancelledError,
     ) as error:
         _LOGGER.error("Error to connect at %s", host)
-        raise CannotConnect(error)
+        raise CannotConnect from error
 
     return client
 
