@@ -105,9 +105,24 @@ async def async_setup(hass, config):
 async def async_setup_entry(hass, config_entry):
     """Set the config entry up."""
     if not config_entry.options:
+        config = config_entry.data
         options = {}
-        options[CONF_ON_ACTION] = config_entry.data.get(CONF_ON_ACTION, {})
-        options[CONF_SOURCES] = config_entry.data.get(CONF_SOURCES, [])
+
+        # Get Turn_on service
+        turn_on_service = config.get(CONF_ON_ACTION)
+        if turn_on_service:
+            services = {}
+            for service in turn_on_service:
+                services.update(service)
+            options[CONF_ON_ACTION] = services
+
+        # Get Preferred Sources
+        sources = config.get(CONF_CUSTOMIZE, {}).get(CONF_SOURCES)
+        if sources:
+            options[CONF_SOURCES] = sources
+            if isinstance(sources, list) is False:
+                options[CONF_SOURCES] = sources.split(",")
+
         hass.config_entries.async_update_entry(config_entry, options=options)
 
     host = config_entry.data[CONF_HOST]

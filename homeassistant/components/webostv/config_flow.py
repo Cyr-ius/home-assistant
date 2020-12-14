@@ -8,7 +8,7 @@ import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.components import ssdp
-from homeassistant.const import CONF_CUSTOMIZE, CONF_HOST, CONF_ICON, CONF_NAME
+from homeassistant.const import CONF_HOST, CONF_ICON, CONF_NAME
 from homeassistant.core import callback
 from homeassistant.helpers import config_validation as cv
 
@@ -69,22 +69,6 @@ class FlowHandler(config_entries.ConfigFlow):
             # check exist
             await self.async_set_unique_id(user_input[CONF_HOST])
             self._abort_if_unique_id_configured()
-
-            # Get Turn_on service
-            turn_on_service = user_input.get(CONF_ON_ACTION)
-            if turn_on_service:
-                services = {}
-                for service in turn_on_service:
-                    services.update(service)
-                user_input[CONF_ON_ACTION] = services
-
-            # Get Preferred Sources
-            sources = user_input.get(CONF_CUSTOMIZE, {}).get(CONF_SOURCES)
-            if sources:
-                user_input[CONF_SOURCES] = sources
-                user_input.pop(CONF_CUSTOMIZE, None)
-                if isinstance(sources, list) is False:
-                    user_input[CONF_SOURCES] = sources.split(",")
 
             # save for pairing
             self.user_input = user_input
