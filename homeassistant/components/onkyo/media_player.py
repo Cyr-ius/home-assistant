@@ -1,127 +1,37 @@
 """Support for Onkyo Receivers."""
 import logging
-from typing import List
+from typing import Callable, List
 
-import eiscp
-from eiscp import eISCP
-import voluptuous as vol
+from homeassistant.components.media_player import MediaPlayerEntity
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_NAME, STATE_OFF, STATE_ON
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity import Entity
 
-from homeassistant.components.media_player import PLATFORM_SCHEMA, MediaPlayerEntity
-from homeassistant.components.media_player.const import (
+from .const import (
+    ATTR_PRESET,
+    CONF_MAX_VOLUME,
+    CONF_RECEIVER_MAX_VOLUME,
+    CONF_SOURCES,
+    DEFAULT_PLAYABLE_SOURCES,
+    DEFAULT_RECEIVER_MAX_VOLUME,
     DOMAIN,
-    SUPPORT_PLAY,
-    SUPPORT_PLAY_MEDIA,
-    SUPPORT_SELECT_SOURCE,
-    SUPPORT_TURN_OFF,
-    SUPPORT_TURN_ON,
-    SUPPORT_VOLUME_MUTE,
-    SUPPORT_VOLUME_SET,
-    SUPPORT_VOLUME_STEP,
+    SUPPORT_ONKYO,
+    SUPPORT_ONKYO_WO_VOLUME,
+    SUPPORTED_MAX_VOLUME,
+    TIMEOUT_MESSAGE,
 )
-from homeassistant.const import (
-    ATTR_ENTITY_ID,
-    CONF_HOST,
-    CONF_NAME,
-    STATE_OFF,
-    STATE_ON,
-)
-import homeassistant.helpers.config_validation as cv
 
 _LOGGER = logging.getLogger(__name__)
 
-CONF_SOURCES = "sources"
-CONF_MAX_VOLUME = "max_volume"
-CONF_RECEIVER_MAX_VOLUME = "receiver_max_volume"
 
-DEFAULT_NAME = "Onkyo Receiver"
-SUPPORTED_MAX_VOLUME = 100
-DEFAULT_RECEIVER_MAX_VOLUME = 80
-
-SUPPORT_ONKYO = (
-    SUPPORT_VOLUME_SET
-    | SUPPORT_VOLUME_MUTE
-    | SUPPORT_VOLUME_STEP
-    | SUPPORT_TURN_ON
-    | SUPPORT_TURN_OFF
-    | SUPPORT_SELECT_SOURCE
-    | SUPPORT_PLAY
-    | SUPPORT_PLAY_MEDIA
-)
-
-SUPPORT_ONKYO_WO_VOLUME = (
-    SUPPORT_TURN_ON
-    | SUPPORT_TURN_OFF
-    | SUPPORT_SELECT_SOURCE
-    | SUPPORT_PLAY
-    | SUPPORT_PLAY_MEDIA
-)
-
-KNOWN_HOSTS: List[str] = []
-DEFAULT_SOURCES = {
-    "tv": "TV",
-    "bd": "Bluray",
-    "game": "Game",
-    "aux1": "Aux1",
-    "video1": "Video 1",
-    "video2": "Video 2",
-    "video3": "Video 3",
-    "video4": "Video 4",
-    "video5": "Video 5",
-    "video6": "Video 6",
-    "video7": "Video 7",
-    "fm": "Radio",
-}
-
-DEFAULT_PLAYABLE_SOURCES = ("fm", "am", "tuner")
-
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
-    {
-        vol.Optional(CONF_HOST): cv.string,
-        vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
-        vol.Optional(CONF_MAX_VOLUME, default=SUPPORTED_MAX_VOLUME): vol.All(
-            vol.Coerce(int), vol.Range(min=1, max=100)
-        ),
-        vol.Optional(
-            CONF_RECEIVER_MAX_VOLUME, default=DEFAULT_RECEIVER_MAX_VOLUME
-        ): cv.positive_int,
-        vol.Optional(CONF_SOURCES, default=DEFAULT_SOURCES): {cv.string: cv.string},
-    }
-)
-
-TIMEOUT_MESSAGE = "Timeout waiting for response."
-
-
-ATTR_HDMI_OUTPUT = "hdmi_output"
-ATTR_PRESET = "preset"
-
-ACCEPTED_VALUES = [
-    "no",
-    "analog",
-    "yes",
-    "out",
-    "out-sub",
-    "sub",
-    "hdbaset",
-    "both",
-    "up",
-]
-ONKYO_SELECT_OUTPUT_SCHEMA = vol.Schema(
-    {
-        vol.Required(ATTR_ENTITY_ID): cv.entity_ids,
-        vol.Required(ATTR_HDMI_OUTPUT): vol.In(ACCEPTED_VALUES),
-    }
-)
-
-SERVICE_SELECT_HDMI_OUTPUT = "onkyo_select_hdmi_output"
-
-
-def determine_zones(receiver):
+def determine_zones(receiver) -> dict:
     """Determine what zones are available for the receiver."""
-    out = {"zone2": False, "zone3": False}
+    out = []
     try:
         _LOGGER.debug("Checking for zone 2 capability")
         receiver.raw("ZPWQSTN")
-        out["zone2"] = True
+        out.append(2)
     except ValueError as error:
         if str(error) != TIMEOUT_MESSAGE:
             raise error
@@ -129,7 +39,7 @@ def determine_zones(receiver):
     try:
         _LOGGER.debug("Checking for zone 3 capability")
         receiver.raw("PW3QSTN")
-        out["zone3"] = True
+        out.append(3)
     except ValueError as error:
         if str(error) != TIMEOUT_MESSAGE:
             raise error
@@ -140,77 +50,43 @@ def determine_zones(receiver):
     return out
 
 
-def setup_platform(hass, config, add_entities, discovery_info=None):
-    """Set up the Onkyo platform."""
-    host = config.get(CONF_HOST)
-    hosts = []
-
-    def service_handle(service):
-        """Handle for services."""
-        entity_ids = service.data.get(ATTR_ENTITY_ID)
-        devices = [d for d in hosts if d.entity_id in entity_ids]
-
-        for device in devices:
-            if service.service == SERVICE_SELECT_HDMI_OUTPUT:
-                device.select_output(service.data.get(ATTR_HDMI_OUTPUT))
-
-    hass.services.register(
-        DOMAIN,
-        SERVICE_SELECT_HDMI_OUTPUT,
-        service_handle,
-        schema=ONKYO_SELECT_OUTPUT_SCHEMA,
+async def async_setup_entry(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    async_add_entities: Callable[[List[Entity], bool], None],
+) -> None:
+    """Set up the Onkyo entry."""
+    entities = []
+    receiver = hass.data[DOMAIN][config_entry.unique_id]
+    entities.append(
+        OnkyoDevice(
+            receiver,
+            config_entry.options.get(CONF_SOURCES),
+            unique_id=config_entry.unique_id,
+            name=config_entry.data.get(CONF_NAME),
+            max_volume=config_entry.data.get(CONF_MAX_VOLUME, SUPPORTED_MAX_VOLUME),
+            receiver_max_volume=config_entry.data.get(
+                CONF_RECEIVER_MAX_VOLUME, DEFAULT_RECEIVER_MAX_VOLUME
+            ),
+        )
     )
-
-    if CONF_HOST in config and host not in KNOWN_HOSTS:
-        try:
-            receiver = eiscp.eISCP(host)
-            hosts.append(
-                OnkyoDevice(
-                    receiver,
-                    config.get(CONF_SOURCES),
-                    name=config.get(CONF_NAME),
-                    max_volume=config.get(CONF_MAX_VOLUME),
-                    receiver_max_volume=config.get(CONF_RECEIVER_MAX_VOLUME),
-                )
+    zones = determine_zones(receiver)
+    for zone in zones:
+        entities.append(
+            OnkyoDeviceZone(
+                zone,
+                receiver,
+                config_entry.options.get(CONF_SOURCES),
+                unique_id=f"{config_entry.unique_id}_{zone}",
+                name=f"{config_entry.data[CONF_NAME]} Zone {zone}",
+                max_volume=config_entry.data.get(CONF_MAX_VOLUME, SUPPORTED_MAX_VOLUME),
+                receiver_max_volume=config_entry.data.get(
+                    CONF_RECEIVER_MAX_VOLUME, DEFAULT_RECEIVER_MAX_VOLUME
+                ),
             )
-            KNOWN_HOSTS.append(host)
+        )
 
-            zones = determine_zones(receiver)
-
-            # Add Zone2 if available
-            if zones["zone2"]:
-                _LOGGER.debug("Setting up zone 2")
-                hosts.append(
-                    OnkyoDeviceZone(
-                        "2",
-                        receiver,
-                        config.get(CONF_SOURCES),
-                        name=f"{config[CONF_NAME]} Zone 2",
-                        max_volume=config.get(CONF_MAX_VOLUME),
-                        receiver_max_volume=config.get(CONF_RECEIVER_MAX_VOLUME),
-                    )
-                )
-            # Add Zone3 if available
-            if zones["zone3"]:
-                _LOGGER.debug("Setting up zone 3")
-                hosts.append(
-                    OnkyoDeviceZone(
-                        "3",
-                        receiver,
-                        config.get(CONF_SOURCES),
-                        name=f"{config[CONF_NAME]} Zone 3",
-                        max_volume=config.get(CONF_MAX_VOLUME),
-                        receiver_max_volume=config.get(CONF_RECEIVER_MAX_VOLUME),
-                    )
-                )
-        except OSError:
-            _LOGGER.error("Unable to connect to receiver at %s", host)
-    else:
-        for receiver in eISCP.discover():
-            if receiver.host not in KNOWN_HOSTS:
-                hosts.append(OnkyoDevice(receiver, config.get(CONF_SOURCES)))
-                KNOWN_HOSTS.append(receiver.host)
-    add_entities(hosts, True)
+    async_add_entities(entities, True)
 
 
 class OnkyoDevice(MediaPlayerEntity):
@@ -220,6 +96,7 @@ class OnkyoDevice(MediaPlayerEntity):
         self,
         receiver,
         sources,
+        unique_id,
         name=None,
         max_volume=SUPPORTED_MAX_VOLUME,
         receiver_max_volume=DEFAULT_RECEIVER_MAX_VOLUME,
@@ -229,9 +106,8 @@ class OnkyoDevice(MediaPlayerEntity):
         self._muted = False
         self._volume = 0
         self._pwstate = STATE_OFF
-        self._name = (
-            name or f"{receiver.info['model_name']}_{receiver.info['identifier']}"
-        )
+        self._uid = receiver.info["identifier"]
+        self._name = name or f"{receiver.info['model_name']}_{self._uid}"
         self._max_volume = max_volume
         self._receiver_max_volume = receiver_max_volume
         self._current_source = None
@@ -240,6 +116,7 @@ class OnkyoDevice(MediaPlayerEntity):
         self._reverse_mapping = {value: key for key, value in sources.items()}
         self._attributes = {}
         self._hdmi_out_supported = True
+        self._unique_id = unique_id
 
     def command(self, command):
         """Run an eiscp command and catch connection errors."""
@@ -310,6 +187,11 @@ class OnkyoDevice(MediaPlayerEntity):
             self._hdmi_out_supported = False
 
     @property
+    def unique_id(self) -> str:
+        """Return the unique ID for this sensor."""
+        return self._unique_id
+
+    @property
     def name(self):
         """Return the name of the device."""
         return self._name
@@ -354,8 +236,7 @@ class OnkyoDevice(MediaPlayerEntity):
         self.command("system-power standby")
 
     def set_volume_level(self, volume):
-        """
-        Set volume level, input is range 0..1.
+        """Set volume level, input is range 0..1.
 
         However full volume on the amp is usually far too loud so allow the user to specify the upper range
         with CONF_MAX_VOLUME.  we change as per max_volume set by user. This means that if max volume is 80 then full
@@ -402,6 +283,11 @@ class OnkyoDevice(MediaPlayerEntity):
         """Set hdmi-out."""
         self.command(f"hdmi-output-selector={output}")
 
+    @property
+    def device_info(self):
+        """Return device information."""
+        return {"identifiers": {(DOMAIN, self._uid)}}
+
 
 class OnkyoDeviceZone(OnkyoDevice):
     """Representation of an Onkyo device's extra zone."""
@@ -411,6 +297,7 @@ class OnkyoDeviceZone(OnkyoDevice):
         zone,
         receiver,
         sources,
+        unique_id,
         name=None,
         max_volume=SUPPORTED_MAX_VOLUME,
         receiver_max_volume=DEFAULT_RECEIVER_MAX_VOLUME,
@@ -418,7 +305,9 @@ class OnkyoDeviceZone(OnkyoDevice):
         """Initialize the Zone with the zone identifier."""
         self._zone = zone
         self._supports_volume = True
-        super().__init__(receiver, sources, name, max_volume, receiver_max_volume)
+        super().__init__(
+            receiver, sources, unique_id, name, max_volume, receiver_max_volume
+        )
 
     def update(self):
         """Get the latest state from the device."""
@@ -482,8 +371,7 @@ class OnkyoDeviceZone(OnkyoDevice):
         self.command(f"zone{self._zone}.power=standby")
 
     def set_volume_level(self, volume):
-        """
-        Set volume level, input is range 0..1.
+        """Set volume level, input is range 0..1.
 
         However full volume on the amp is usually far too loud so allow the user to specify the upper range
         with CONF_MAX_VOLUME.  we change as per max_volume set by user. This means that if max volume is 80 then full

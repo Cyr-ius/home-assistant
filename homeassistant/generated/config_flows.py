@@ -140,6 +140,7 @@ FLOWS = [
     "nzbget",
     "omnilogic",
     "onewire",
+    "onkyo",
     "onvif",
     "opentherm_gw",
     "openuv",
