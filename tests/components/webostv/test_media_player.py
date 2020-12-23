@@ -1,7 +1,10 @@
 """The tests for the LG webOS media player platform."""
+<<<<<<< HEAD
 
 from unittest.mock import patch
 
+=======
+>>>>>>> 06110f35e1... Add ConfigEntry
 import pytest
 
 from homeassistant.components import media_player
@@ -26,6 +29,11 @@ from homeassistant.const import (
 )
 from homeassistant.setup import async_setup_component
 
+<<<<<<< HEAD
+=======
+from tests.common import MockConfigEntry, patch
+
+>>>>>>> 06110f35e1... Add ConfigEntry
 NAME = "fake"
 ENTITY_ID = f"{media_player.DOMAIN}.{NAME}"
 
@@ -44,6 +52,13 @@ def client_fixture():
 
 async def setup_webostv(hass):
     """Initialize webostv and media_player for tests."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={CONF_HOST: "fake", CONF_NAME: NAME},
+        unique_id="fake",
+    )
+    entry.add_to_hass(hass)
+
     assert await async_setup_component(
         hass,
         DOMAIN,
@@ -54,7 +69,6 @@ async def setup_webostv(hass):
 
 async def test_mute(hass, client):
     """Test simple service call."""
-
     await setup_webostv(hass)
 
     data = {
@@ -63,13 +77,11 @@ async def test_mute(hass, client):
     }
     await hass.services.async_call(media_player.DOMAIN, SERVICE_VOLUME_MUTE, data)
     await hass.async_block_till_done()
-
     client.set_mute.assert_called_once()
 
 
 async def test_select_source_with_empty_source_list(hass, client):
     """Ensure we don't call client methods when we don't have sources."""
-
     await setup_webostv(hass)
 
     data = {
@@ -85,7 +97,6 @@ async def test_select_source_with_empty_source_list(hass, client):
 
 async def test_button(hass, client):
     """Test generic button functionality."""
-
     await setup_webostv(hass)
 
     data = {
